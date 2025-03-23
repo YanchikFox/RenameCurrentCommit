@@ -1,5 +1,7 @@
 package com.example.renamecurrentcommit;
 
+import com.intellij.openapi.editor.colors.EditorColorsManager;
+import com.intellij.openapi.editor.colors.EditorFontType;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.ui.components.JBScrollPane;
@@ -11,7 +13,6 @@ import javax.swing.event.DocumentListener;
 
 public class CommitMessageDialog extends DialogWrapper {
     private final JTextArea textArea;
-    private final JTextArea placeholderArea;
     private final String currentCommitMessage;
 
     /**
@@ -21,23 +22,32 @@ public class CommitMessageDialog extends DialogWrapper {
         super(project);
         this.currentCommitMessage = placeholder;
         this.textArea = new JTextArea(5, 50);
-        this.placeholderArea = new JTextArea(placeholder);
-        placeholderArea.setEditable(false);
-        placeholderArea.setLineWrap(true);
-        placeholderArea.setWrapStyleWord(true);
-        placeholderArea.setOpaque(false);
-        placeholderArea.setBorder(null);
         textArea.setLineWrap(true);
         textArea.setWrapStyleWord(true);
+        textArea.setText(placeholder);
+        textArea.setFont(EditorColorsManager.getInstance().getGlobalScheme().getFont(EditorFontType.PLAIN));
         textArea.getDocument().addDocumentListener(new DocumentListener() {
-            @Override public void insertUpdate(DocumentEvent e) { checkInput(); }
-            @Override public void removeUpdate(DocumentEvent e) { checkInput(); }
-            @Override public void changedUpdate(DocumentEvent e) { checkInput(); }
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                checkInput();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                checkInput();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                checkInput();
+            }
         });
+
         setTitle("Rename Commit");
         setResizable(true);
         init();
         checkInput();
+
     }
 
     /**
@@ -57,11 +67,9 @@ public class CommitMessageDialog extends DialogWrapper {
     @Override
     protected JComponent createCenterPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        JPanel placeholderPanel = new JPanel(new BorderLayout());
-        placeholderPanel.add(new JLabel("Current commit name:"), BorderLayout.NORTH);
-        placeholderPanel.add(placeholderArea, BorderLayout.CENTER);
-        panel.add(placeholderPanel, BorderLayout.NORTH);
+
         panel.add(new JBScrollPane(textArea), BorderLayout.CENTER);
+
         return panel;
     }
 
