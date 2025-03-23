@@ -1,12 +1,10 @@
 # Rename Current Git Commit Plugin
 
-This IntelliJ IDEA plugin allows you to easily rename the latest Git commit message directly from the IDE UI.  
-No need to use the terminal—just update your commit message with a few clicks!
+This IntelliJ IDEA plugin allows you to easily rename the latest Git commit message directly from the IDE UI in the main toolbar.  
 
 ## Features
 - Rename the most recent Git commit message without retyping the whole command.
 - Integrated into the IntelliJ IDEA Git toolbar.
-- Helps correct typos or refine commit messages easily.
 
 ## Installation
 1. Download the latest release from the [Releases](https://github.com/YanchikFox/RenameCurrentCommit/releases) page.
