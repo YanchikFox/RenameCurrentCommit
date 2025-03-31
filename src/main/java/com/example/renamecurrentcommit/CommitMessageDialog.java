@@ -66,15 +66,24 @@ public class CommitMessageDialog extends DialogWrapper implements Disposable {
         if (okButton == null) return;
 
         String text = textArea.getText().trim();
-        boolean isValid = !text.isEmpty() && !text.equals(originalMessage);
+        String[] lines = text.split("\n", -1);
+
+        boolean isValid = !text.isEmpty()
+                && !text.equals(originalMessage)
+                && isSecondLineValid(lines);
 
         okButton.setEnabled(isValid);
-        setErrorText(getValidationError(text));
+        setErrorText(getValidationError(text, lines));
     }
 
-    private String getValidationError(String text) {
+    private boolean isSecondLineValid(String[] lines) {
+        return lines.length == 1 || (lines.length > 1 && lines[1].isEmpty());
+    }
+
+    private String getValidationError(String text, String[] lines) {
         if (text.isEmpty()) return "Commit message must not be empty.";
         if (text.equals(originalMessage)) return "New message must differ from original.";
+        if (!isSecondLineValid(lines)) return "Second line must be empty (Git standard).";
         return null;
     }
 
