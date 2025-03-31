@@ -24,4 +24,4 @@ Three ways to access:
 To build and run the plugin locally:
 1. Clone the repository:
    ```sh
-   git clone https://github.com/YanchikFox.git
+   git clone https://github.com/YanchikFox/RenameCurrentCommit
