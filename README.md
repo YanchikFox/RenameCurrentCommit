@@ -5,7 +5,6 @@ A lightweight plugin that lets you quickly amend the most recent Git commit mess
 ## ✨ Features
 - **One-click rename** - Edit commit messages without terminal commands
 - **Seamless integration** - Available in Git toolbar and context menus
-- **Visual feedback** - Instant validation of new commit message
 - **Cross-platform** - Works on Windows, macOS, and Linux
 
 ## 📦 Installation
