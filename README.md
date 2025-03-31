@@ -17,7 +17,7 @@ A lightweight plugin that lets you quickly amend the most recent Git commit mess
 Three ways to access:
 1. **Main menu**: Click Git icon in main menu → "Rename Last Commit"
 2. **Shortcut**: Default `Ctrl+Shift+S` (customizable)
-3. **Context menu**: Right-click in Version Control log
+3. **Context menu**: Right-click → Git → "Rename Last Commit"
 4. **Git Branch Toolbar**: Clich branch icon in toolbar → "Rename Last Commit"
 
 ## 🛠 Build from Source
