@@ -10,11 +10,6 @@ version = "1.0-SNAPSHOT"
 repositories {
   mavenCentral()
 }
-sourceSets {
-  main {
-    resources.srcDirs("resources")
-  }
-}
 
 // Configure Gradle IntelliJ Plugin
 // Read more: https://plugins.jetbrains.com/docs/intellij/tools-gradle-intellij-plugin.html

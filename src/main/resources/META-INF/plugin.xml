@@ -43,8 +43,8 @@
     <actions>
         <action id="com.example.renamecurrentcommit.RenameCommitAction"
                 class="com.example.renamecurrentcommit.RenameCurrentCommitAction"
-                text="%Action.Text"
-                description="%action.description">
+                text="Rename Last Commit"
+                description="Renames the latest Git commit message">
             <add-to-group group-id="Git.Experimental.Branch.Popup.Actions" anchor="first"/>
             <add-to-group group-id="Git.MainMenu" anchor="first"/>
             <add-to-group group-id="Git.ContextMenu" anchor="last"/>
