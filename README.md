@@ -14,7 +14,7 @@ A lightweight plugin that lets you quickly amend the most recent Git commit mess
 4. Restart IntelliJ IDEA to apply changes.
 
 ## 🖱 Usage
-Three ways to access:
+There are four ways to access:
 1. **Main menu**: Click Git icon in main menu → "Rename Last Commit"
 2. **Shortcut**: Default `Ctrl+Shift+S` (customizable)
 3. **Context menu**: Right-click → Git → "Rename Last Commit"
@@ -24,4 +24,4 @@ Three ways to access:
 To build and run the plugin locally:
 1. Clone the repository:
    ```sh
-   git clone https://github.com/YanchikFox.git
+   git clone https://github.com/YanchikFox/RenameCurrentCommit
