@@ -20,7 +20,6 @@
         Easily rename your last Git commit message directly from IntelliJ IDEA.<br>
         Features:
         <ul>
-            <li>Git-standard message validation</li>
             <li>Dark/light theme support</li>
             <li>Simple one-click operation</li>
         </ul>
@@ -44,8 +43,8 @@
     <actions>
         <action id="com.example.renamecurrentcommit.RenameCommitAction"
                 class="com.example.renamecurrentcommit.RenameCurrentCommitAction"
-                text="Rename Last Commit"
-                description="Renames the latest Git commit message">
+                text="%Action.Text"
+                description="%action.description">
             <add-to-group group-id="Git.Experimental.Branch.Popup.Actions" anchor="first"/>
             <add-to-group group-id="Git.MainMenu" anchor="first"/>
             <add-to-group group-id="Git.ContextMenu" anchor="last"/>

@@ -12,9 +12,6 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.*;
 
-/**
- * Dialog for editing commit message with basic validation
- */
 public class CommitMessageDialog extends DialogWrapper implements Disposable {
     private final JTextArea textArea;
     private final String originalMessage;
@@ -23,13 +20,10 @@ public class CommitMessageDialog extends DialogWrapper implements Disposable {
         super(project);
         this.originalMessage = originalMessage;
         this.textArea = createTextArea(originalMessage);
-
+        setTitle(RenameCommitBundle.message("dialog.title"));
         initDialog();
     }
 
-    /**
-     * Creates and configures the text area for commit message
-     */
     private JTextArea createTextArea(String initialText) {
         JTextArea area = new JTextArea(5, 50);
         area.setLineWrap(true);
@@ -48,42 +42,26 @@ public class CommitMessageDialog extends DialogWrapper implements Disposable {
         return area;
     }
 
-    /**
-     * Initializes dialog properties
-     */
     private void initDialog() {
-        setTitle("Rename Commit");
         setResizable(true);
         init();
         validateInput();
     }
 
-    /**
-     * Validates commit message (only checks for empty or identical messages)
-     */
     private void validateInput() {
         JButton okButton = getButton(getOKAction());
         if (okButton == null) return;
 
         String text = textArea.getText().trim();
-        String[] lines = text.split("\n", -1);
-
-        boolean isValid = !text.isEmpty()
-                && !text.equals(originalMessage)
-                && isSecondLineValid(lines);
+        boolean isValid = !text.isEmpty() && !text.equals(originalMessage);
 
         okButton.setEnabled(isValid);
-        setErrorText(getValidationError(text, lines));
+        setErrorText(getValidationError(text));
     }
 
-    private boolean isSecondLineValid(String[] lines) {
-        return lines.length == 1 || (lines.length > 1 && lines[1].isEmpty());
-    }
-
-    private String getValidationError(String text, String[] lines) {
-        if (text.isEmpty()) return "Commit message must not be empty.";
-        if (text.equals(originalMessage)) return "New message must differ from original.";
-        if (!isSecondLineValid(lines)) return "Second line must be empty (Git standard).";
+    private String getValidationError(String text) {
+        if (text.isEmpty()) return RenameCommitBundle.message("validation.empty");
+        if (text.equals(originalMessage)) return RenameCommitBundle.message("validation.identical");
         return null;
     }
 
