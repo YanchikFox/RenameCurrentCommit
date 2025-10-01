@@ -1,44 +1,51 @@
 <!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <idea-plugin>
-  <!-- Unique identifier of the plugin. It should be FQN. It cannot be changed between the plugin versions. -->
-  <id>com.example.RenameCurrentCommit</id>
+    <!-- Unique identifier of the plugin. It should be FQN. It cannot be changed between the plugin versions. -->
+    <id>com.example.RenameCurrentCommit</id>
 
-  <!-- Public plugin name should be written in Title Case.
-       Guidelines: https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-name -->
-  <name>RenameCurrentCommit</name>
+    <!-- Public plugin name should be written in Title Case.
+         Guidelines: https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-name -->
+    <name>RenameCurrentCommit</name>
 
+    <version>1.0</version>
+    <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
+    <vendor email="287564@student.pwr.edu.pl">Anton Illiuk</vendor>
 
-  <version>1.0</version>
-  <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
-  <vendor email="287564@student.pwr.edu.pl">Anton Illiuk</vendor>
-
-  <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
-       Simple HTML elements (text formatting, paragraphs, and lists) can be added inside of <![CDATA[ ]]> tag.
-       Guidelines: https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-description -->
+    <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
+         Simple HTML elements (text formatting, paragraphs, and lists) can be added inside of <![CDATA[ ]]> tag.
+         Guidelines: https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-description -->
     <description>
         <![CDATA[
         Easily rename your last Git commit message directly from IntelliJ IDEA.<br>
-        Features:
+        <br>
+        <b>Features:</b>
         <ul>
             <li>Dark/light theme support</li>
             <li>Simple one-click operation</li>
+            <li>Option to include or exclude staged changes</li>
+            <li>Validation for commit message format</li>
+            <li>Support for various repository states</li>
+        </ul>
+        <br>
+        <b>Usage:</b>
+        <ul>
+            <li>Access from Git menu, Git context menu, or use the keyboard shortcut (Ctrl+Shift+S)</li>
+            <li>Edit your commit message in the dialog</li>
+            <li>If you have staged changes, you can choose whether to include them in the amended commit</li>
         </ul>
         ]]>
     </description>
 
-
-  <!-- Product and plugin compatibility requirements.
-       Read more: https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
-  <depends>com.intellij.modules.platform</depends>
-  <depends>Git4Idea</depends>
-
-
+    <!-- Product and plugin compatibility requirements.
+         Read more: https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
+    <depends>com.intellij.modules.platform</depends>
+    <depends>Git4Idea</depends>
 
     <!-- Extension points defined by the plugin.
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
-  <extensions defaultExtensionNs="com.intellij">
+    <extensions defaultExtensionNs="com.intellij">
 
-  </extensions>
+    </extensions>
 
     <actions>
         <action id="com.example.renamecurrentcommit.RenameCommitAction"
