@@ -12,6 +12,7 @@ import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.util.IconLoader;
 import com.intellij.openapi.vcs.VcsException;
+import com.intellij.openapi.vfs.VirtualFile;
 import git4idea.GitUtil;
 import git4idea.commands.Git;
 import git4idea.commands.GitCommand;
@@ -37,15 +38,17 @@ public class RenameCurrentCommitAction extends AnAction {
 
         // Enable/disable action based on git repository state
         Project project = event.getProject();
-        if (project != null) {
-            GitRepositoryManager manager = GitUtil.getRepositoryManager(project);
-            GitRepository repo = manager.getRepositoryForFile(project.getBaseDir());
-
-            // Disable if no repository or repository is in rebasing state
-            event.getPresentation().setEnabled(repo != null && !isRepositoryRebasing(repo));
-        } else {
+        if (project == null) {
             event.getPresentation().setEnabled(false);
+            return;
         }
+
+        GitRepository repo = findRepository(project, event);
+        boolean enabled = repo != null
+                && repo.getCurrentRevision() != null
+                && !isRepositoryInConflictingState(repo);
+
+        event.getPresentation().setEnabled(enabled);
     }
 
     @Override
@@ -68,9 +71,19 @@ public class RenameCurrentCommitAction extends AnAction {
             return;
         }
 
-        GitRepository repo = repositories.get(0);
-        if (isRepositoryRebasing(repo)) {
-            showError(project, "Cannot rename commit during rebase. Complete the rebase first.");
+        GitRepository repo = findRepository(project, event);
+        if (repo == null) {
+            showError(project, "Cannot determine Git repository for this operation");
+            return;
+        }
+
+        if (repo.getCurrentRevision() == null) {
+            showError(project, "Repository does not contain commits to rename yet");
+            return;
+        }
+
+        if (isRepositoryInConflictingState(repo)) {
+            showError(project, "Cannot rename commit while Git is performing another operation (rebase, merge, etc.)");
             return;
         }
 
@@ -123,45 +136,46 @@ public class RenameCurrentCommitAction extends AnAction {
                 try {
                     indicator.setText("Preparing commit amendment...");
 
-                    // If we don't want to include staged changes, we need to stash them first
                     boolean needStash = !includeStaged && hasStagedChanges(repo);
-                    if (needStash) {
-                        indicator.setText("Temporarily stashing staged changes...");
-                        stashStagedChanges(repo);
-                    }
+                    boolean stashCreated = false;
 
-                    // Amend the commit
-                    indicator.setText("Amending commit...");
-                    GitLineHandler handler = new GitLineHandler(
-                            event.getProject(),
-                            repo.getRoot(),
-                            GitCommand.COMMIT
-                    );
-                    handler.addParameters("--amend", "-m", newMessage);
-                    GitCommandResult result = Git.getInstance().runCommand(handler);
+                    try {
+                        if (needStash) {
+                            indicator.setText("Temporarily stashing staged changes...");
+                            stashCreated = stashStagedChanges(repo);
+                        }
 
-                    // Restore stashed changes if needed
-                    if (needStash) {
-                        indicator.setText("Restoring staged changes...");
-                        unstashStagedChanges(repo);
-                    }
-
-                    if (!result.success()) {
-                        showError(event.getProject(), "Failed to rename commit: " + result.getErrorOutputAsJoinedString());
-                        return;
-                    }
-
-                    // Update repository state
-                    repo.update();
-
-                    ApplicationManager.getApplication().invokeLater(() -> {
-                        Messages.showInfoMessage(
+                        indicator.setText("Amending commit...");
+                        GitLineHandler handler = new GitLineHandler(
                                 event.getProject(),
-                                "Commit message successfully updated!",
-                                "Success"
+                                repo.getRoot(),
+                                GitCommand.COMMIT
                         );
-                    }, ModalityState.defaultModalityState());
+                        handler.addParameters("--amend", "-m", newMessage);
+                        GitCommandResult result = Git.getInstance().runCommand(handler);
 
+                        if (!result.success()) {
+                            throw new VcsException(result.getErrorOutputAsJoinedString());
+                        }
+
+                        repo.update();
+
+                        ApplicationManager.getApplication().invokeLater(() ->
+                                Messages.showInfoMessage(
+                                        event.getProject(),
+                                        "Commit message successfully updated!",
+                                        "Success"
+                                ), ModalityState.defaultModalityState());
+                    } finally {
+                        if (stashCreated) {
+                            indicator.setText("Restoring staged changes...");
+                            try {
+                                unstashStagedChanges(repo);
+                            } catch (VcsException e) {
+                                showError(event.getProject(), "Commit renamed, but failed to restore staged changes: " + e.getMessage());
+                            }
+                        }
+                    }
                 } catch (Exception e) {
                     showError(event.getProject(), "Failed to rename commit: " + e.getMessage());
                 }
@@ -172,14 +186,31 @@ public class RenameCurrentCommitAction extends AnAction {
     /**
      * Temporarily stash staged changes so they don't get included in the amend
      */
-    private void stashStagedChanges(GitRepository repo) throws VcsException {
+    private boolean stashStagedChanges(GitRepository repo) throws VcsException {
         GitLineHandler handler = new GitLineHandler(
                 repo.getProject(),
                 repo.getRoot(),
                 GitCommand.STASH
         );
-        handler.addParameters("push", "--keep-index", "--message", "Temporary stash for commit rename");
-        Git.getInstance().runCommand(handler).getOutputOrThrow();
+        handler.addParameters("push", "--staged", "--message", "Temporary stash for commit rename");
+        GitCommandResult result = Git.getInstance().runCommand(handler);
+
+        if (result.success()) {
+            return true;
+        }
+
+        // Fallback for Git versions without --staged support
+        GitLineHandler fallback = new GitLineHandler(
+                repo.getProject(),
+                repo.getRoot(),
+                GitCommand.STASH
+        );
+        fallback.addParameters("push", "--message", "Temporary stash for commit rename");
+        GitCommandResult fallbackResult = Git.getInstance().runCommand(fallback);
+        if (!fallbackResult.success()) {
+            throw new VcsException(fallbackResult.getErrorOutputAsJoinedString());
+        }
+        return true;
     }
 
     /**
@@ -191,8 +222,11 @@ public class RenameCurrentCommitAction extends AnAction {
                 repo.getRoot(),
                 GitCommand.STASH
         );
-        handler.addParameters("pop");
-        Git.getInstance().runCommand(handler).getOutputOrThrow();
+        handler.addParameters("pop", "--index");
+        GitCommandResult result = Git.getInstance().runCommand(handler);
+        if (!result.success()) {
+            throw new VcsException(result.getErrorOutputAsJoinedString());
+        }
     }
 
     /**
@@ -223,8 +257,8 @@ public class RenameCurrentCommitAction extends AnAction {
     /**
      * Checks if repository is in rebasing state
      */
-    private boolean isRepositoryRebasing(GitRepository repo) {
-        return repo.getState() == GitRepository.State.REBASING;
+    private boolean isRepositoryInConflictingState(GitRepository repo) {
+        return repo.getState() != GitRepository.State.NORMAL;
     }
 
     /**
@@ -245,6 +279,29 @@ public class RenameCurrentCommitAction extends AnAction {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private GitRepository findRepository(Project project, AnActionEvent event) {
+        GitRepositoryManager manager = GitUtil.getRepositoryManager(project);
+        if (manager == null) {
+            return null;
+        }
+
+        VirtualFile contextFile = event != null ? event.getData(CommonDataKeys.VIRTUAL_FILE) : null;
+        if (contextFile != null) {
+            GitRepository repo = manager.getRepositoryForFileQuick(contextFile);
+            if (repo != null) {
+                return repo;
+            }
+        }
+
+        GitRepository repo = manager.getRepositoryForFileQuick(project.getBaseDir());
+        if (repo != null) {
+            return repo;
+        }
+
+        List<GitRepository> repositories = manager.getRepositories();
+        return repositories.size() == 1 ? repositories.get(0) : null;
     }
 
     /**
