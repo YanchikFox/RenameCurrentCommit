@@ -7,13 +7,16 @@ import com.intellij.openapi.editor.colors.EditorColorsManager;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.progress.Task;
+import com.intellij.openapi.progress.util.ProgressIndicatorBase;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.util.Disposer;
+import com.intellij.openapi.util.Key;
 import com.intellij.openapi.util.IconLoader;
 import com.intellij.openapi.vcs.VcsException;
 import com.intellij.openapi.vfs.VirtualFile;
 import git4idea.GitUtil;
+import git4idea.branch.GitBranchUtil;
 import git4idea.commands.Git;
 import git4idea.commands.GitCommand;
 import git4idea.commands.GitCommandResult;
@@ -22,12 +25,17 @@ import git4idea.repo.GitRepository;
 import git4idea.repo.GitRepositoryManager;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * IntelliJ IDEA action that allows renaming the most recent Git commit.
  */
 public class RenameCurrentCommitAction extends AnAction {
+
+    private static final Key<GitRepository> LAST_USED_REPOSITORY = Key.create("rename.current.commit.last.repository");
 
     @Override
     public void update(@NotNull AnActionEvent event) {
@@ -43,7 +51,7 @@ public class RenameCurrentCommitAction extends AnAction {
             return;
         }
 
-        GitRepository repo = findRepository(project, event);
+        GitRepository repo = findRepository(project, event, false);
         boolean enabled = repo != null
                 && repo.getCurrentRevision() != null
                 && !isRepositoryInConflictingState(repo);
@@ -67,7 +75,7 @@ public class RenameCurrentCommitAction extends AnAction {
             return;
         }
 
-        GitRepository repo = findRepository(project, event);
+        GitRepository repo = findRepository(project, event, true);
         if (repo == null) {
             showError(project, "Cannot determine Git repository for this operation");
             return;
@@ -83,30 +91,27 @@ public class RenameCurrentCommitAction extends AnAction {
             return;
         }
 
-        ProgressManager.getInstance().run(new Task.Backgroundable(project, "Checking git repository status") {
-            @Override
-            public void run(@NotNull ProgressIndicator indicator) {
-                try {
-                    if (isHeadDetached(repo)) {
-                        showError(project, "Cannot rename commit in detached HEAD state");
-                        return;
-                    }
-
-                    boolean hasStagedChanges = hasStagedChanges(repo);
-                    String commitMessage = getCurrentCommitMessage(repo);
-
-                    if (commitMessage == null || commitMessage.isEmpty()) {
-                        showError(project, "Failed to retrieve current commit message");
-                        return;
-                    }
-
-                    ApplicationManager.getApplication().invokeLater(() -> {
-                        showCommitDialog(event, repo, commitMessage, hasStagedChanges);
-                    }, ModalityState.defaultModalityState());
-
-                } catch (Exception e) {
-                    showError(project, "Error accessing Git repository: " + e.getMessage());
+        runBackgroundTask(project, "Checking git repository status", indicator -> {
+            try {
+                if (isHeadDetached(repo)) {
+                    showError(project, "Cannot rename commit in detached HEAD state");
+                    return;
                 }
+
+                boolean hasStagedChanges = hasStagedChanges(repo);
+                String commitMessage = getCurrentCommitMessage(repo);
+
+                if (commitMessage == null || commitMessage.isEmpty()) {
+                    showError(project, "Failed to retrieve current commit message");
+                    return;
+                }
+
+                ApplicationManager.getApplication().invokeLater(() -> {
+                    showCommitDialog(event, repo, commitMessage, hasStagedChanges);
+                }, ModalityState.defaultModalityState());
+
+            } catch (Exception e) {
+                showError(project, "Error accessing Git repository: " + e.getMessage());
             }
         });
     }
@@ -115,66 +120,69 @@ public class RenameCurrentCommitAction extends AnAction {
      * Shows the commit message dialog
      */
     private void showCommitDialog(AnActionEvent event, GitRepository repo, String commitMessage, boolean hasStagedChanges) {
-        CommitMessageDialog dialog = new CommitMessageDialog(event.getProject(), commitMessage, hasStagedChanges);
+        CommitMessageDialog dialog = createCommitDialog(event.getProject(), commitMessage, hasStagedChanges);
         if (dialog.showAndGet()) {
             amendCommit(event, repo, dialog.getCommitMessage(), dialog.shouldIncludeStaged());
         }
         Disposer.dispose(dialog);
     }
 
+    protected CommitMessageDialog createCommitDialog(Project project, String commitMessage, boolean hasStagedChanges) {
+        return new CommitMessageDialog(project, commitMessage, hasStagedChanges);
+    }
+
     /**
      * Amends the most recent commit with new message
      */
     private void amendCommit(AnActionEvent event, GitRepository repo, String newMessage, boolean includeStaged) {
-        ProgressManager.getInstance().run(new Task.Backgroundable(event.getProject(), "Renaming commit") {
-            @Override
-            public void run(@NotNull ProgressIndicator indicator) {
+        runBackgroundTask(event.getProject(), "Renaming commit", indicator -> {
+            try {
+                indicator.setText("Preparing commit amendment...");
+
+                boolean needStash = !includeStaged && hasStagedChanges(repo);
+                boolean stashCreated = false;
+
                 try {
-                    indicator.setText("Preparing commit amendment...");
+                    if (needStash) {
+                        indicator.setText("Temporarily stashing staged changes...");
+                        stashCreated = stashStagedChanges(repo);
+                    }
 
-                    boolean needStash = !includeStaged && hasStagedChanges(repo);
-                    boolean stashCreated = false;
+                    indicator.setText("Amending commit...");
+                    GitLineHandler handler = new GitLineHandler(
+                            event.getProject(),
+                            repo.getRoot(),
+                            GitCommand.COMMIT
+                    );
+                    handler.addParameters("--amend", "-m", newMessage);
+                    GitCommandResult result = Git.getInstance().runCommand(handler);
 
-                    try {
-                        if (needStash) {
-                            indicator.setText("Temporarily stashing staged changes...");
-                            stashCreated = stashStagedChanges(repo);
-                        }
+                    if (!result.success()) {
+                        throw new VcsException(result.getErrorOutputAsJoinedString());
+                    }
 
-                        indicator.setText("Amending commit...");
-                        GitLineHandler handler = new GitLineHandler(
-                                event.getProject(),
-                                repo.getRoot(),
-                                GitCommand.COMMIT
-                        );
-                        handler.addParameters("--amend", "-m", newMessage);
-                        GitCommandResult result = Git.getInstance().runCommand(handler);
+                    repo.update();
 
-                        if (!result.success()) {
-                            throw new VcsException(result.getErrorOutputAsJoinedString());
-                        }
-
-                        repo.update();
-
+                    if (!ApplicationManager.getApplication().isUnitTestMode()) {
                         ApplicationManager.getApplication().invokeLater(() ->
                                 Messages.showInfoMessage(
                                         event.getProject(),
                                         "Commit message successfully updated!",
                                         "Success"
                                 ), ModalityState.defaultModalityState());
-                    } finally {
-                        if (stashCreated) {
-                            indicator.setText("Restoring staged changes...");
-                            try {
-                                unstashStagedChanges(repo);
-                            } catch (VcsException e) {
-                                showError(event.getProject(), "Commit renamed, but failed to restore staged changes: " + e.getMessage());
-                            }
+                    }
+                } finally {
+                    if (stashCreated) {
+                        indicator.setText("Restoring staged changes...");
+                        try {
+                            unstashStagedChanges(repo);
+                        } catch (VcsException e) {
+                            showError(event.getProject(), "Commit renamed, but failed to restore staged changes: " + e.getMessage());
                         }
                     }
-                } catch (Exception e) {
-                    showError(event.getProject(), "Failed to rename commit: " + e.getMessage());
                 }
+            } catch (Exception e) {
+                showError(event.getProject(), "Failed to rename commit: " + e.getMessage());
             }
         });
     }
@@ -277,24 +285,131 @@ public class RenameCurrentCommitAction extends AnAction {
         }
     }
 
-    private GitRepository findRepository(Project project, AnActionEvent event) {
+    private GitRepository findRepository(Project project, AnActionEvent event, boolean allowSelection) {
         GitRepositoryManager manager = GitUtil.getRepositoryManager(project);
 
         VirtualFile contextFile = event != null ? event.getData(CommonDataKeys.VIRTUAL_FILE) : null;
         if (contextFile != null) {
             GitRepository repo = manager.getRepositoryForFileQuick(contextFile);
             if (repo != null) {
+                project.putUserData(LAST_USED_REPOSITORY, repo);
                 return repo;
             }
         }
 
-        GitRepository repo = manager.getRepositoryForFileQuick(project.getBaseDir());
+        GitRepository repo = GitBranchUtil.getCurrentRepository(project);
         if (repo != null) {
+            project.putUserData(LAST_USED_REPOSITORY, repo);
             return repo;
         }
 
+        VirtualFile baseDir = project.getBaseDir();
+        if (baseDir != null) {
+            repo = manager.getRepositoryForFileQuick(baseDir);
+            if (repo != null) {
+                project.putUserData(LAST_USED_REPOSITORY, repo);
+                return repo;
+            }
+        }
+
+        GitRepository lastUsed = project.getUserData(LAST_USED_REPOSITORY);
+        if (lastUsed != null && !lastUsed.isDisposed()) {
+            return lastUsed;
+        }
+
         List<GitRepository> repositories = manager.getRepositories();
-        return repositories.size() == 1 ? repositories.get(0) : null;
+        if (repositories.isEmpty()) {
+            return null;
+        }
+
+        if (repositories.size() == 1) {
+            GitRepository single = repositories.get(0);
+            project.putUserData(LAST_USED_REPOSITORY, single);
+            return single;
+        }
+
+        GitRepository chosen = selectRepository(project, repositories, allowSelection);
+        if (chosen != null) {
+            project.putUserData(LAST_USED_REPOSITORY, chosen);
+        }
+        return chosen;
+    }
+
+    private GitRepository selectRepository(Project project, List<GitRepository> repositories, boolean allowSelection) {
+        GitRepository current = GitBranchUtil.getCurrentRepository(project);
+        if (current != null) {
+            return current;
+        }
+
+        GitRepository stored = project.getUserData(LAST_USED_REPOSITORY);
+        if (stored != null && !stored.isDisposed() && repositories.contains(stored)) {
+            return stored;
+        }
+
+        if (!allowSelection) {
+            return repositories.stream()
+                    .filter(Objects::nonNull)
+                    .min(Comparator.comparing(repo -> repo.getRoot().getPresentableUrl()))
+                    .orElse(null);
+        }
+
+        if (ApplicationManager.getApplication().isUnitTestMode()) {
+            return repositories.stream()
+                    .filter(Objects::nonNull)
+                    .min(Comparator.comparing(repo -> repo.getRoot().getPresentableUrl()))
+                    .orElse(null);
+        }
+
+        GitRepository[] selected = new GitRepository[1];
+        Runnable chooser = () -> {
+            String[] options = repositories.stream()
+                    .map(repo -> repo.getRoot().getPresentableUrl())
+                    .toArray(String[]::new);
+            String defaultChoice = options.length > 0 ? options[0] : null;
+            int selectionIndex = Messages.showChooseDialog(
+                    project,
+                    "Select the Git root to rename the current commit",
+                    "Select Git Repository",
+                    null,
+                    options,
+                    defaultChoice
+            );
+            if (selectionIndex >= 0 && selectionIndex < repositories.size()) {
+                selected[0] = repositories.get(selectionIndex);
+            }
+        };
+
+        if (ApplicationManager.getApplication().isDispatchThread()) {
+            chooser.run();
+        } else {
+            ApplicationManager.getApplication().invokeAndWait(chooser, ModalityState.defaultModalityState());
+        }
+
+        if (selected[0] == null) {
+            return repositories.get(0);
+        }
+
+        return selected[0];
+    }
+
+    private void runBackgroundTask(Project project, String title, Consumer<ProgressIndicator> task) {
+        if (ApplicationManager.getApplication().isUnitTestMode()) {
+            try {
+                ApplicationManager.getApplication()
+                        .executeOnPooledThread(() -> task.accept(new ProgressIndicatorBase()))
+                        .get();
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to run background task", e);
+            }
+            return;
+        }
+
+        ProgressManager.getInstance().run(new Task.Backgroundable(project, title) {
+            @Override
+            public void run(@NotNull ProgressIndicator indicator) {
+                task.accept(indicator);
+            }
+        });
     }
 
     /**
