@@ -12,8 +12,6 @@ import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 
 /**
  * Dialog for editing commit message with improved validation and UX
@@ -24,6 +22,7 @@ public class CommitMessageDialog extends DialogWrapper implements Disposable {
     private final String originalMessage;
     private final boolean hasStaged;
     private final Project project;
+    private final boolean initialIncludeStagedSelection;
 
     public CommitMessageDialog(Project project, String originalMessage, boolean hasStaged) {
         super(project);
@@ -32,6 +31,8 @@ public class CommitMessageDialog extends DialogWrapper implements Disposable {
         this.project = project;
         this.textArea = createTextArea(originalMessage);
         this.includeStaged = new JCheckBox("Include staged changes", true);
+        this.initialIncludeStagedSelection = includeStaged.isSelected();
+        this.includeStaged.addActionListener(e -> validateInput());
 
         initDialog();
     }
@@ -75,18 +76,31 @@ public class CommitMessageDialog extends DialogWrapper implements Disposable {
         if (okButton == null) return;
 
         String text = textArea.getText().trim();
-        String[] lines = text.split("\n", -1);
+        boolean selectionChanged = hasStaged && includeStaged.isSelected() != initialIncludeStagedSelection;
 
-        boolean isValid = !text.isEmpty()
-                && !text.equals(originalMessage);
+        ValidationState validationState = evaluateValidationState(text, originalMessage, selectionChanged);
 
-        okButton.setEnabled(isValid);
-        setErrorText(getValidationError(text, lines));
+        okButton.setEnabled(validationState.isValid());
+        setErrorText(validationState.getErrorText());
     }
 
-    private String getValidationError(String text, String[] lines) {
-        if (text.isEmpty()) return "Commit message must not be empty.";
-        if (text.equals(originalMessage)) return "New message must differ from original.";
+    static ValidationState evaluateValidationState(String text, String originalMessage, boolean selectionChanged) {
+        String[] lines = text.split("\n", -1);
+        boolean messageChanged = !text.equals(originalMessage);
+
+        boolean isValid = !text.isEmpty() && (messageChanged || selectionChanged);
+        String errorText = getValidationError(text, lines, messageChanged, selectionChanged);
+
+        return new ValidationState(isValid, errorText);
+    }
+
+    private static String getValidationError(String text, String[] lines, boolean messageChanged, boolean selectionChanged) {
+        if (text.isEmpty()) {
+            return "Commit message must not be empty.";
+        }
+        if (!messageChanged && !selectionChanged) {
+            return "Adjust the commit message or staged selection before confirming.";
+        }
 
         // Additional validation for conventional commit format
         if (lines.length > 0 && lines[0].length() > 72) {
@@ -94,6 +108,24 @@ public class CommitMessageDialog extends DialogWrapper implements Disposable {
         }
 
         return null;
+    }
+
+    static final class ValidationState {
+        private final boolean valid;
+        private final String errorText;
+
+        ValidationState(boolean valid, String errorText) {
+            this.valid = valid;
+            this.errorText = errorText;
+        }
+
+        boolean isValid() {
+            return valid;
+        }
+
+        String getErrorText() {
+            return errorText;
+        }
     }
 
     @Override
