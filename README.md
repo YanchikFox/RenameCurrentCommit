@@ -33,3 +33,7 @@ cd RenameCurrentCommit
 ```
 
 The Gradle wrapper will download all required dependencies automatically on the first run of these commands.
+
+## 📝 License
+
+This project is licensed under the [MIT License](./LICENSE).
