@@ -60,10 +60,6 @@ public class RenameCurrentCommitAction extends AnAction {
         }
 
         GitRepositoryManager manager = GitUtil.getRepositoryManager(project);
-        if (manager == null) {
-            showError(project, "Git is not configured for this project");
-            return;
-        }
 
         List<GitRepository> repositories = manager.getRepositories();
         if (repositories.isEmpty()) {
@@ -87,7 +83,7 @@ public class RenameCurrentCommitAction extends AnAction {
             return;
         }
 
-        ProgressManager.getInstance().run(new Task.Backgroundable(project, "Checking Git Repository Status") {
+        ProgressManager.getInstance().run(new Task.Backgroundable(project, "Checking git repository status") {
             @Override
             public void run(@NotNull ProgressIndicator indicator) {
                 try {
@@ -130,7 +126,7 @@ public class RenameCurrentCommitAction extends AnAction {
      * Amends the most recent commit with new message
      */
     private void amendCommit(AnActionEvent event, GitRepository repo, String newMessage, boolean includeStaged) {
-        ProgressManager.getInstance().run(new Task.Backgroundable(event.getProject(), "Renaming Commit") {
+        ProgressManager.getInstance().run(new Task.Backgroundable(event.getProject(), "Renaming commit") {
             @Override
             public void run(@NotNull ProgressIndicator indicator) {
                 try {
@@ -283,9 +279,6 @@ public class RenameCurrentCommitAction extends AnAction {
 
     private GitRepository findRepository(Project project, AnActionEvent event) {
         GitRepositoryManager manager = GitUtil.getRepositoryManager(project);
-        if (manager == null) {
-            return null;
-        }
 
         VirtualFile contextFile = event != null ? event.getData(CommonDataKeys.VIRTUAL_FILE) : null;
         if (contextFile != null) {
