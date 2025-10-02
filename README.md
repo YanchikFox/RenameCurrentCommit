@@ -15,13 +15,21 @@ A lightweight plugin that lets you quickly amend the most recent Git commit mess
 
 ## 🖱 Usage
 There are four ways to access:
+
 1. **Main menu**: Click Git icon in main menu → "Rename Last Commit"
 2. **Shortcut**: Default `Ctrl+Shift+S` (customizable)
 3. **Context menu**: Right-click → Git → "Rename Last Commit"
-4. **Git Branch Toolbar**: Clich branch icon in toolbar → "Rename Last Commit"
+4. **Git Branch Toolbar**: Click branch icon in toolbar → "Rename Last Commit"
 
 ## 🛠 Build from Source
 To build and run the plugin locally:
-1. Clone the repository:
-   ```sh
-   git clone https://github.com/YanchikFox/RenameCurrentCommit
+
+```sh
+git clone https://github.com/YanchikFox/RenameCurrentCommit
+cd RenameCurrentCommit
+./gradlew --refresh-dependencies
+./gradlew build
+./gradlew runIde
+```
+
+The Gradle wrapper will download all required dependencies automatically on the first run of these commands.
