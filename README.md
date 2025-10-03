@@ -1,4 +1,4 @@
-# Rename Current Git Commit Plugin
+# Rename Current Git Commit Plugin   ![Gradle CI](https://github.com/YanchikFox/RenameCurrentCommit/actions/workflows/gradle-ci.yml/badge.svg)
 
 A lightweight plugin that lets you quickly amend the most recent Git commit message directly from IntelliJ's UI.
 
