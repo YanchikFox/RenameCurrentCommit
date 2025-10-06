@@ -1,39 +1,48 @@
-# Rename Current Git Commit Plugin   ![Gradle CI](https://github.com/YanchikFox/RenameCurrentCommit/actions/workflows/gradle-ci.yml/badge.svg)
+# Rename Current Commit IntelliJ Plugin ![Gradle CI](https://github.com/YanchikFox/RenameCurrentCommit/actions/workflows/gradle-ci.yml/badge.svg)
 
-A lightweight plugin that lets you quickly amend the most recent Git commit message directly from IntelliJ's UI.
+A lightweight IntelliJ IDEA plugin that amends the most recent Git commit message directly from the IDE.
 
 ## ✨ Features
-- **One-click rename** - Edit commit messages without terminal commands
-- **Seamless integration** - Available in Git toolbar and context menus
-- **Cross-platform** - Works on Windows, macOS, and Linux
+- **Rename without the terminal** – update the latest commit message from menus or a shortcut.
+- **Smart Git root selection** – automatically detects the active repository or lets you choose when multiple roots are present.
+- **Staged change control** – decide whether staged files should stay in the amended commit; the plugin safely stashes and restores them when excluded.
+- **Commit message validation** – prevents empty submissions and warns when the summary line exceeds 72 characters.
+- **Theme-aware UI** – ships with light and dark icons that match the current editor theme.
 
-## 📦 Installation
-1. Download the latest release from the [Releases](https://github.com/YanchikFox/RenameCurrentCommit/releases) page.
-2. In IntelliJ IDEA, go to **File** → **Settings** → **Plugins**.
-3. Click **Install Plugin from Disk...** and select the downloaded `.zip` file.
-4. Restart IntelliJ IDEA to apply changes.
+## 📥 Installation
+1. Download the latest packaged plugin from the [Releases](https://github.com/YanchikFox/RenameCurrentCommit/releases) page.
+2. In IntelliJ IDEA, open **File → Settings → Plugins** (or **Preferences** on macOS).
+3. Click **⚙ → Install Plugin from Disk…** and choose the downloaded `.zip`.
+4. Restart the IDE to activate the plugin.
+
+> The plugin targets IntelliJ IDEA 2024.1 – 2024.3.* and requires the bundled Git4Idea plugin (enabled by default).
 
 ## 🖱 Usage
-There are four ways to access:
+You can start the rename flow from any of the following entry points:
 
-1. **Main menu**: Click Git icon in main menu → "Rename Last Commit"
-2. **Shortcut**: Default `Ctrl+Shift+S` (customizable)
-3. **Context menu**: Right-click → Git → "Rename Last Commit"
-4. **Git Branch Toolbar**: Click branch icon in toolbar → "Rename Last Commit"
+- **Git Main Menu** → "Rename Last Commit"
+- **Git Branch Toolbar popup** (branch icon) → "Rename Last Commit"
+- **Git context menu** when right-clicking in project view → "Rename Last Commit"
+- **Keyboard shortcut**: `Ctrl+Shift+S` (customisable via **Settings → Keymap**)
 
-## 🛠 Build from Source
-To build and run the plugin locally:
+When triggered, a dialog appears with:
 
-```sh
-git clone https://github.com/YanchikFox/RenameCurrentCommit
+1. The current commit message, ready to edit.
+2. A warning if staged changes are detected, plus a checkbox to include/exclude them.
+3. Inline validation with actionable error messages (e.g. empty message, summary too long).
+
+Confirm to amend the latest commit; the plugin updates the message and restores any temporarily stashed staged changes.
+
+## 🛠 Build & Run from Source
+```bash
+git clone https://github.com/YanchikFox/RenameCurrentCommit.git
 cd RenameCurrentCommit
 ./gradlew --refresh-dependencies
-./gradlew build
-./gradlew runIde
+./gradlew build          # Compiles and runs automated tests
+./gradlew runIde         # Launches a sandbox IDE with the plugin installed
 ```
 
-The Gradle wrapper will download all required dependencies automatically on the first run of these commands.
+Gradle downloads all required IntelliJ platform dependencies on the first run. Use `./gradlew test` to execute the unit test suite separately.
 
 ## 📝 License
-
-This project is licensed under the [MIT License](./LICENSE).
+Licensed under the [MIT License](./LICENSE).
